@@ -1,0 +1,109 @@
+{
+  "reports": [
+    {
+      "id": "requests_by_theme",
+      "dataset": "community_requests",
+      "title": "Обращения по темам",
+      "description": "Количество обращений по каждой теме",
+      "type": "bar_chart",
+      "group_by": "тема",
+      "aggregate": {
+        "type": "count",
+        "field": "*"
+      },
+      "apply_spam_filter": true,
+      "time_period": "all",
+      "sort_by": "count",
+      "sort_order": "desc",
+      "limit": 20,
+      "chart_config": {
+        "x_axis": "тема",
+        "y_axis": "count",
+        "colors": ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]
+      }
+    },
+    {
+      "id": "requests_by_location",
+      "dataset": "community_requests",
+      "title": "Обращения по районам",
+      "description": "Распределение обращений по адресам",
+      "type": "bar_chart",
+      "group_by": "адрес",
+      "aggregate": {
+        "type": "count",
+        "field": "*"
+      },
+      "apply_spam_filter": true,
+      "sort_by": "count",
+      "sort_order": "desc",
+      "limit": 15
+    },
+    {
+      "id": "response_rate",
+      "dataset": "community_requests",
+      "title": "Процент ответов на обращения",
+      "description": "Какой процент обращений получили ответ",
+      "type": "gauge",
+      "apply_spam_filter": true,
+      "formula": "count(ответ=true) / count(*) * 100",
+      "unit": "%",
+      "thresholds": {
+        "red": [0, 33],
+        "yellow": [33, 67],
+        "green": [67, 100]
+      }
+    },
+    {
+      "id": "requests_timeline",
+      "dataset": "community_requests",
+      "title": "Обращения во времени (последние 30 дней)",
+      "description": "Динамика обращений по дням",
+      "type": "line_chart",
+      "group_by": "дата",
+      "group_interval": "day",
+      "aggregate": {
+        "type": "count",
+        "field": "*"
+      },
+      "apply_spam_filter": true,
+      "time_period": "last_30_days",
+      "chart_config": {
+        "x_axis": "дата",
+        "y_axis": "count",
+        "line_type": "monotone",
+        "colors": ["#3b82f6"]
+      }
+    },
+    {
+      "id": "top_respondents",
+      "dataset": "community_requests",
+      "title": "Топ авторов обращений",
+      "description": "Кто чаще всего оставляет обращения",
+      "type": "bar_chart",
+      "group_by": "от_кого",
+      "aggregate": {
+        "type": "count",
+        "field": "*"
+      },
+      "apply_spam_filter": true,
+      "sort_by": "count",
+      "sort_order": "desc",
+      "limit": 10
+    },
+    {
+      "id": "theme_response_rate",
+      "dataset": "community_requests",
+      "title": "Процент ответов по темам",
+      "description": "На какие темы чаще всего отвечают",
+      "type": "bar_chart",
+      "group_by": "тема",
+      "aggregate": {
+        "type": "custom",
+        "formula": "count(ответ=true) / count(*) * 100"
+      },
+      "apply_spam_filter": true,
+      "sort_by": "aggregate",
+      "sort_order": "desc"
+    }
+  ]
+}

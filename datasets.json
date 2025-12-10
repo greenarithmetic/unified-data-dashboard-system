@@ -1,0 +1,135 @@
+{
+  "datasets": [
+    {
+      "id": "community_requests",
+      "name": "Обращения граждан",
+      "description": "Сбор обращений из телеграм-чатов о проблемах в городе",
+      "source": "google_sheets",
+      "sheet_id": "1v1aXMDfc9gruLnmJBlVVxRO7Ahila87j9lzEA5Zcj2E",
+      "sheet_name": "Лист1",
+      "sync_interval_minutes": 10,
+      "schema": {
+        "тема": {
+          "type": "text",
+          "display_name": "Тема обращения",
+          "filterable": true,
+          "searchable": false,
+          "required": true
+        },
+        "дата": {
+          "type": "datetime",
+          "display_name": "Дата обращения",
+          "sortable": true,
+          "filterable": true,
+          "required": true
+        },
+        "от_кого": {
+          "type": "text",
+          "display_name": "От кого",
+          "filterable": true,
+          "required": true
+        },
+        "текст": {
+          "type": "text",
+          "display_name": "Текст обращения",
+          "searchable": true,
+          "truncate_on_display": 150,
+          "required": true
+        },
+        "адрес": {
+          "type": "text",
+          "display_name": "Адрес",
+          "filterable": true,
+          "searchable": true,
+          "required": false
+        },
+        "ответ": {
+          "type": "boolean",
+          "display_name": "Есть ответ",
+          "filterable": true,
+          "required": false
+        }
+      },
+      "deduplication": {
+        "enabled": true,
+        "strategy": "source_id_or_hash",
+        "unique_fields": ["тема", "от_кого", "дата"],
+        "hash_algorithm": "md5",
+        "ttl_days": 90
+      },
+      "quality_filters": {
+        "enabled": true,
+        "min_text_length": 5,
+        "max_text_length": 10000,
+        "spam_keywords": [
+          "спам",
+          "тест",
+          "удалить",
+          "реклама",
+          "куплю",
+          "продам",
+          "меняю",
+          "дарю",
+          "найден",
+          "потерян"
+        ],
+        "spam_patterns": [
+          "^[A-Z0-9]{20,}$",
+          "^http[s]?://",
+          "^[0-9]{20,}$",
+          "^[А-Я]{15,}$"
+        ],
+        "exclude_if_empty": ["тема", "от_кого"],
+        "exclude_if_contains_only_numbers": true,
+        "exclude_if_contains_only_urls": true
+      },
+      "indexes": {
+        "full_text": ["текст", "адрес"],
+        "bloom_filter": ["source_id"],
+        "regular": ["дата", "тема", "адрес", "от_кого"],
+        "composite": [["тема", "дата"], ["адрес", "дата"]]
+      },
+      "retention_policy": {
+        "keep_days": 365,
+        "archive_after_days": 180,
+        "soft_delete": true
+      }
+    },
+    {
+      "id": "second_table",
+      "name": "Вторая таблица",
+      "description": "Второй источник данных",
+      "source": "google_sheets",
+      "sheet_id": "1jk6Ogf6Kvt6chPZGiB6eIZqN0c0-qYi0_Wb_cPXqovw",
+      "sheet_name": "Лист1",
+      "sync_interval_minutes": 10,
+      "schema": {
+        "column1": {
+          "type": "text",
+          "display_name": "Колонка 1",
+          "filterable": true
+        },
+        "column2": {
+          "type": "datetime",
+          "display_name": "Колонка 2",
+          "sortable": true
+        },
+        "column3": {
+          "type": "number",
+          "display_name": "Колонка 3",
+          "sortable": true
+        }
+      },
+      "deduplication": {
+        "enabled": true,
+        "strategy": "source_id_or_hash",
+        "unique_fields": ["column1", "column2"]
+      },
+      "quality_filters": {
+        "enabled": true,
+        "min_text_length": 3,
+        "spam_keywords": ["spam", "test"]
+      }
+    }
+  ]
+}

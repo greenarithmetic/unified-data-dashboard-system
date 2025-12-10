@@ -1,0 +1,176 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: udds-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: udds
+      POSTGRES_USER: udds
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password_here_change_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U udds -d udds"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - udds-network
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: udds-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - udds-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: udds-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://udds:${DB_PASSWORD:-your_secure_password_here_change_in_production}@postgres:5432/udds
+      REDIS_URL: redis://redis:6379
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000", "http://localhost:8088"]}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-your-secret-for-webhook-validation}
+    volumes:
+      - ./datasets.json:/app/datasets.json
+      - ./reports.json:/app/reports.json
+      - ./backend/app:/app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - udds-network
+
+  # Frontend application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: udds-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: /api/v1
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - udds-network
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: udds-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./frontend/dist:/usr/share/nginx/html
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - udds-network
+
+  # Apache Superset for advanced analytics
+  superset:
+    image: apache/superset:latest
+    container_name: udds-superset
+    restart: unless-stopped
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-dev-secret-change-in-production}
+      SUPERSET_DATABASE_URI: postgresql+psycopg2://superset:${SUPERSET_DATABASE_PASSWORD:-your_secure_password_here_change_in_production}@postgres:5432/superset
+      SUPERSET_DATABASE_PASSWORD: ${SUPERSET_DATABASE_PASSWORD:-your_secure_password_here_change_in_production}
+    volumes:
+      - superset_data:/app/superset_home
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8088:8088"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - udds-network
+
+  # Database migration service
+  alembic:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: udds-alembic
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL...' &&
+        until pg_isready -h postgres -p 5432 -U udds; do sleep 2; done &&
+        echo 'Running migrations...' &&
+        alembic upgrade head &&
+        echo 'Migrations completed!' &&
+        tail -f /dev/null
+      "
+    environment:
+      DATABASE_URL: postgresql://udds:${DB_PASSWORD:-your_secure_password_here_change_in_production}@postgres:5432/udds
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - udds-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  superset_data:
+    driver: local
+
+networks:
+  udds-network:
+    driver: bridge
