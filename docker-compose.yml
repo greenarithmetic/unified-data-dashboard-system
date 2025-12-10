@@ -117,17 +117,25 @@ services:
 
   # Apache Superset for advanced analytics
   superset:
-    image: apache/superset:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
     container_name: udds-superset
     restart: unless-stopped
     environment:
       SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-dev-secret-change-in-production}
       SUPERSET_DATABASE_URI: postgresql+psycopg2://superset:${SUPERSET_DATABASE_PASSWORD:-your_secure_password_here_change_in_production}@postgres:5432/superset
       SUPERSET_DATABASE_PASSWORD: ${SUPERSET_DATABASE_PASSWORD:-your_secure_password_here_change_in_production}
+      FLASK_ENV: development
+      PYTHONPATH: /app/pythonpath
     volumes:
       - superset_data:/app/superset_home
+      - ./superset_config.py:/app/superset_config.py
+      - ./create_superset_dashboards.py:/app/create_superset_dashboards.py
     depends_on:
       postgres:
+        condition: service_healthy
+      backend:
         condition: service_healthy
     ports:
       - "8088:8088"
@@ -136,9 +144,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 90s
     networks:
       - udds-network
+    command: >
+      sh -c "
+        echo 'Waiting for backend to be ready...' &&
+        sleep 30 &&
+        echo 'Starting Superset...' &&
+        /app/superset_init.sh
+      "
 
   # Database migration service
   alembic:

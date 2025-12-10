@@ -1,90 +1,111 @@
 #!/bin/bash
 
-# Unified Data Dashboard System - Startup Script
+# Unified Data Dashboard System - Start Script
+# This script starts the complete system with Apache Superset integration
+
 set -e
 
-echo "🚀 Starting Unified Data Dashboard System..."
+echo "=========================================="
+echo "Unified Data Dashboard System (UDDS)"
+echo "With Apache Superset Integration"
+echo "=========================================="
 
 # Check if .env file exists
 if [ ! -f .env ]; then
-    echo "⚠️  .env file not found. Creating from example..."
-    cp .env.example .env
-    echo "📝 Please edit .env file with your configuration"
-    echo "   nano .env"
+    echo "❌ .env file not found!"
+    echo "Please copy .env.example to .env and configure it:"
+    echo "  cp .env.example .env"
+    echo "  nano .env"
     exit 1
 fi
 
-# Check Docker Compose
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ docker-compose not found. Installing..."
-    # Try to install docker-compose
-    if command -v apt-get &> /dev/null; then
-        apt-get update && apt-get install -y docker-compose
-    elif command -v yum &> /dev/null; then
-        yum install -y docker-compose
-    elif command -v apk &> /dev/null; then
-        apk add docker-compose
-    else
-        echo "⚠️  Please install docker-compose manually"
-        echo "   https://docs.docker.com/compose/install/"
-        exit 1
-    fi
-fi
-
-# Check Docker
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker not found. Please install Docker first."
-    echo "   https://docs.docker.com/engine/install/"
+# Check Docker Compose (try both docker-compose and docker compose)
+if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    echo "❌ Docker Compose not found!"
+    echo "Please install Docker Compose:"
+    echo "  https://docs.docker.com/compose/install/"
     exit 1
 fi
 
-# Start Docker daemon if not running
+# Determine which command to use
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    DOCKER_COMPOSE_CMD="docker compose"
+fi
+
+echo "✅ Docker Compose found (using: $DOCKER_COMPOSE_CMD)"
+
+# Check Docker daemon
 if ! docker info &> /dev/null; then
-    echo "⚠️  Docker daemon not running. Starting..."
-    if command -v systemctl &> /dev/null; then
-        sudo systemctl start docker
-    elif command -v service &> /dev/null; then
-        sudo service docker start
-    else
-        echo "⚠️  Please start Docker daemon manually"
-        exit 1
-    fi
-    sleep 3
+    echo "❌ Docker daemon not running!"
+    echo "Please start Docker daemon first."
+    exit 1
 fi
+
+echo "✅ Docker daemon is running"
+
+# Pull latest images
+echo "📦 Pulling latest Docker images..."
+$DOCKER_COMPOSE_CMD pull
 
 # Build and start services
-echo "🔨 Building Docker images..."
-docker-compose build
-
 echo "🚀 Starting services..."
-docker-compose up -d
+$DOCKER_COMPOSE_CMD up -d
 
 echo "⏳ Waiting for services to start..."
 sleep 10
 
-# Check services
-echo "🔍 Checking services status..."
-docker-compose ps
+# Check service status
+echo "📊 Checking service status..."
+$DOCKER_COMPOSE_CMD ps
 
 echo ""
-echo "✅ Unified Data Dashboard System is starting!"
+echo "=========================================="
+echo "✅ System started successfully!"
+echo "=========================================="
 echo ""
-echo "📊 Access URLs:"
-echo "   Frontend:      http://localhost:3000"
-echo "   Backend API:   http://localhost:8000"
-echo "   API Docs:      http://localhost:8000/docs"
-echo "   Superset:      http://localhost:8088"
+echo "Access the following services:"
 echo ""
-echo "📋 Useful commands:"
-echo "   View logs:     docker-compose logs -f"
-echo "   Stop:          docker-compose down"
-echo "   Restart:       docker-compose restart"
-echo "   Status:        docker-compose ps"
+echo "📊 Frontend (React):"
+echo "  http://localhost:3000"
 echo ""
-echo "🔧 Initial setup:"
-echo "   1. Open http://localhost:3000"
-echo "   2. Configure Google Sheets API credentials"
-echo "   3. Edit datasets.json for your data sources"
-echo "   4. Check reports.json for custom reports"
+echo "🔧 Backend API:"
+echo "  http://localhost:8000/api/v1"
+echo "  Documentation: http://localhost:8000/docs"
 echo ""
-echo "📝 For detailed setup instructions, see README.md"
+echo "🎯 Apache Superset (Primary Analytics Tool):"
+echo "  http://localhost:8088"
+echo "  Login: admin"
+echo "  Password: admin"
+echo ""
+echo "🗄️ PostgreSQL:"
+echo "  localhost:5432"
+echo "  Database: udds"
+echo "  User: udds"
+echo ""
+echo "🔴 Redis:"
+echo "  localhost:6379"
+echo ""
+echo "=========================================="
+echo "Useful commands:"
+echo "  $DOCKER_COMPOSE_CMD logs -f [service]  # View logs"
+echo "  $DOCKER_COMPOSE_CMD ps                 # Check status"
+echo "  $DOCKER_COMPOSE_CMD down               # Stop services"
+echo "  $DOCKER_COMPOSE_CMD restart [service]  # Restart service"
+echo "=========================================="
+
+# Check Superset health
+echo ""
+echo "⏳ Checking Superset health..."
+sleep 30
+
+if curl -s -f http://localhost:8088/health > /dev/null; then
+    echo "✅ Superset is healthy and running"
+else
+    echo "⚠️  Superset health check failed, but may still be starting"
+    echo "   Check logs: $DOCKER_COMPOSE_CMD logs -f superset"
+fi
+
+echo ""
+echo "🎉 System is ready! Open your browser to start using UDDS."
