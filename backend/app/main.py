@@ -8,7 +8,7 @@ import atexit
 
 from app.config import settings
 from app.database import init_db
-from app.api import data, ingest, health, test
+from app.api import data, ingest, health, test, superset
 from app.services.data_loader import DataLoaderService
 from app.database import SessionLocal
 from loguru import logger
@@ -200,6 +200,12 @@ app.include_router(
     test.router,
     prefix=f"{settings.api_v1_str}/test",
     tags=["test"]
+)
+
+app.include_router(
+    superset.router,
+    prefix=f"{settings.api_v1_str}",
+    tags=["superset"]
 )
 
 

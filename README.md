@@ -9,6 +9,7 @@
 - **Дедупликация** - 3 стратегии: по source_id, по хешу, bloom-фильтр
 - **Спам-фильтр** - трехуровневая система: keywords + regex + ML-ready
 - **REST API** - полный API для работы с данными
+- **Superset интеграция** - API для создания дашбордов и отчетов
 - **Webhook** - интеграция с внешними системами
 - **PostgreSQL + Redis** - оптимальное хранение и кеширование
 
@@ -22,8 +23,9 @@
 ### DevOps
 - **Docker Compose** - 7 сервисов: backend, frontend, PostgreSQL, Redis, Nginx, Superset
 - **Nginx reverse proxy** - production-ready конфигурация
-- **Apache Superset** - продвинутая аналитика и отчеты
+- **Apache Superset** - продвинутая аналитика и отчеты (основной инструмент визуализации)
 - **Health checks** - мониторинг состояния всех сервисов
+- **Автоматические дашборды** - скрипты для создания дашбордов в Superset
 
 ### Конфигурация
 - **Zero-code** - настройка через JSON файлы
@@ -69,7 +71,9 @@ docker-compose down
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000/api/v1
 - **API документация**: http://localhost:8000/docs
-- **Superset**: http://localhost:8088
+- **Superset (основной аналитический инструмент)**: http://localhost:8088
+  - Логин: admin
+  - Пароль: admin
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 
@@ -77,15 +81,15 @@ docker-compose down
 
 ```
 unified-data-dashboard/
-├── backend/                    # FastAPI приложение
+├── backend/                    # FastAPI приложение (ETL сервис)
 │   ├── app/
-│   │   ├── api/               # API endpoints
+│   │   ├── api/               # API endpoints (включая Superset API)
 │   │   ├── services/          # Бизнес-логика
 │   │   ├── schemas/           # Pydantic схемы
 │   │   └── database.py        # Модели SQLAlchemy
 │   ├── Dockerfile
 │   └── requirements.txt
-├── frontend/                  # React приложение
+├── frontend/                  # React приложение (базовый интерфейс)
 │   ├── src/
 │   │   ├── components/        # React компоненты
 │   │   ├── pages/            # Страницы приложения
@@ -100,6 +104,10 @@ unified-data-dashboard/
 ├── docker-compose.yml        # Docker Compose конфигурация
 ├── nginx.conf               # Nginx конфигурация
 ├── init-db.sql              # SQL инициализация
+├── superset_config.py       # Конфигурация Apache Superset
+├── Dockerfile.superset      # Dockerfile для Superset
+├── superset_init.sh         # Скрипт инициализации Superset
+├── create_superset_dashboards.py # Скрипт создания дашбордов
 └── README.md                # Эта документация
 ```
 
@@ -156,6 +164,13 @@ unified-data-dashboard/
 - `POST /api/v1/ingest/{dataset_id}` - Загрузить данные
 - `POST /api/v1/ingest/{dataset_id}/sync` - Принудительная синхронизация
 
+### Superset интеграция
+- `GET /api/v1/superset/status` - Проверка статуса Superset
+- `POST /api/v1/superset/dashboards/create` - Создать дашборд в Superset
+- `GET /api/v1/superset/dashboards/{dataset_id}` - Получить дашборды для датасета
+- `POST /api/v1/superset/charts/create` - Создать чарт в Superset
+- `GET /api/v1/superset/datasets/sync` - Синхронизировать датасеты с Superset
+
 ### Здоровье
 - `GET /api/v1/health` - Проверка здоровья системы
 - `GET /api/v1/health/detailed` - Детальная проверка
@@ -167,8 +182,33 @@ unified-data-dashboard/
 2. **Синхронизация**: Система автоматически загрузит данные каждый час
 3. **Дедупликация**: Дубликаты будут автоматически обнаружены и помечены
 4. **Спам-фильтрация**: Нежелательные записи будут отфильтрованы
-5. **Анализ**: Используйте готовые отчеты или создайте свои
-6. **Экспорт**: Экспортируйте данные через API или Superset
+5. **Анализ в Superset**: Используйте мощные дашборды Apache Superset для анализа
+6. **Автоматические дашборды**: Система создаст базовые дашборды автоматически
+7. **Расширенная аналитика**: Создавайте кастомные отчеты и визуализации в Superset
+8. **Экспорт**: Экспортируйте данные через API или Superset
+
+## 🎯 Apache Superset - Основной аналитический инструмент
+
+### Почему Superset?
+- **Мощная визуализация**: 50+ типов чартов и графиков
+- **SQL редактор**: Прямое выполнение SQL запросов
+- **Дашборды**: Интерактивные дашборды с фильтрами
+- **Безопасность**: Ролевая модель доступа
+- **Расширяемость**: Плагины и кастомные визуализации
+
+### Автоматические дашборды
+Система автоматически создает следующие дашборды:
+1. **Records Over Time** - динамика поступлений обращений
+2. **Records by Source** - распределение по источникам
+3. **Spam vs Non-Spam** - анализ спама
+4. **Top Categories** - топ категорий обращений
+5. **Records by Status** - распределение по статусам
+
+### Доступ к Superset
+- **URL**: http://localhost:8088
+- **Логин**: admin
+- **Пароль**: admin
+- **База данных**: Автоматически подключена к UDDS PostgreSQL
 
 ## 🐛 Отладка
 
